@@ -1,6 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.SceneManagement; 
+using UnityEngine.SceneManagement;
 
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
@@ -19,7 +19,7 @@ public class PlayerController : MonoBehaviour
     public Transform spawnPoint;
 
     [Header("UI")]
-    public Image[] heartImages; 
+    public Image[] heartImages;
     public GameObject gameOverPanel;
 
     private CharacterController controller;
@@ -99,9 +99,14 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+
     private void OnControllerColliderHit(ControllerColliderHit hit)
     {
-        if (hit.gameObject.CompareTag("Spike") || hit.gameObject.CompareTag("DeadZone"))
+        if (
+            hit.gameObject.CompareTag("Spike") ||
+            hit.gameObject.CompareTag("DeadZone") ||
+            hit.gameObject.CompareTag("Spear")
+            )
         {
             Die();
         }
@@ -142,7 +147,6 @@ public class PlayerController : MonoBehaviour
         Cursor.lockState = CursorLockMode.None;
     }
 
-    
     public void RestartGame()
     {
         SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
