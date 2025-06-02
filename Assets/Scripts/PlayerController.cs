@@ -1,11 +1,11 @@
 using UnityEngine;
-using UnityEngine.UI;
 using UnityEngine.SceneManagement;
+using System.Collections;
 
 [RequireComponent(typeof(CharacterController))]
 public class PlayerController : MonoBehaviour
 {
-    [Header("Movement_Speed")]
+    [Header("Movement Settings")]
     public float walkSpeed = 1f;
     public float sprintSpeed = 2f;
     public float jumpHeight = 1f;
@@ -18,9 +18,12 @@ public class PlayerController : MonoBehaviour
     public Animator animator;
     public Transform spawnPoint;
 
-    [Header("UI")]
-    public Image[] heartImages;
-    public GameObject gameOverPanel;
+    [Header("Shield Effect")]
+    public GameObject shieldVisual;
+
+    [Header("Keys")]
+    public int keysCollected = 0;
+    public int totalKeysNeeded = 2;
 
     private CharacterController controller;
     private Vector3 velocity;
@@ -31,7 +34,11 @@ public class PlayerController : MonoBehaviour
     public float CurrentYaw => yaw;
 
     private int lives = 3;
+    private const int maxLives = 3;
     private bool isGameOver = false;
+
+    private bool isShielded = false;
+    public float shieldDuration = 8f;
 
     void Start()
     {
@@ -41,8 +48,12 @@ public class PlayerController : MonoBehaviour
         if (spawnPoint != null)
             transform.position = spawnPoint.position;
 
-        UpdateHeartsUI();
-        gameOverPanel.SetActive(false);
+        if (shieldVisual != null)
+            shieldVisual.SetActive(false);
+
+        // Inicializar UI de vidas y llaves
+        UIManager.Instance.UpdateHearts(lives);
+        UIManager.Instance.UpdateKeys(keysCollected, totalKeysNeeded);
     }
 
     void Update()
@@ -95,27 +106,96 @@ public class PlayerController : MonoBehaviour
 
         if (IsMoving)
         {
-            transform.rotation = Quaternion.Slerp(transform.rotation, Quaternion.Euler(0f, yaw, 0f), rotationSpeed * Time.deltaTime);
+            transform.rotation = Quaternion.Slerp(
+                transform.rotation,
+                Quaternion.Euler(0f, yaw, 0f),
+                rotationSpeed * Time.deltaTime
+            );
         }
     }
 
-
     private void OnControllerColliderHit(ControllerColliderHit hit)
     {
-        if (
-            hit.gameObject.CompareTag("Spike") ||
-            hit.gameObject.CompareTag("DeadZone") ||
-            hit.gameObject.CompareTag("Spear")
-            )
+        Rigidbody body = hit.collider.attachedRigidbody;
+
+        if (body != null && !body.isKinematic && hit.gameObject.CompareTag("Pushable"))
         {
-            Die();
+            Vector3 pushDir = new Vector3(hit.moveDirection.x, 0, hit.moveDirection.z);
+            body.velocity = pushDir * currentSpeed;
         }
+
+        if (hit.gameObject.CompareTag("Spike") ||
+            hit.gameObject.CompareTag("DeadZone") ||
+            hit.gameObject.CompareTag("Spear"))
+        {
+            if (!isShielded)
+            {
+                Die();
+            }
+        }
+    }
+
+    private void OnTriggerEnter(Collider other)
+    {
+        if (other.CompareTag("GoldenCarrot"))
+        {
+            StartCoroutine(ActivateShield());
+            Destroy(other.gameObject);
+        }
+        else if (other.CompareTag("Carrot"))
+        {
+            if (lives < maxLives)
+            {
+                lives++;
+                UIManager.Instance.UpdateHearts(lives);
+            }
+            Destroy(other.gameObject);
+        }
+        else if (other.CompareTag("Key"))
+        {
+            keysCollected++;
+            Destroy(other.gameObject);
+            Debug.Log($"Llaves recolectadas: {keysCollected} / {totalKeysNeeded}");
+
+            // Actualiza la UI de llaves
+            UIManager.Instance.UpdateKeys(keysCollected, totalKeysNeeded);
+        }
+        else if (other.CompareTag("FinalDoor"))
+        {
+            if (keysCollected >= totalKeysNeeded)
+            {
+                UIManager.Instance.ShowVictory();
+            }
+            else
+            {
+                Debug.Log("Necesitas más llaves para abrir la puerta.");
+                // (Opcional) Aquí podrías mostrar un mensaje en pantalla al jugador
+            }
+        }
+    }
+
+    private IEnumerator ActivateShield()
+    {
+        if (isShielded)
+            yield break;
+
+        isShielded = true;
+
+        if (shieldVisual != null)
+            shieldVisual.SetActive(true);
+
+        yield return new WaitForSeconds(shieldDuration);
+
+        isShielded = false;
+
+        if (shieldVisual != null)
+            shieldVisual.SetActive(false);
     }
 
     void Die()
     {
         lives--;
-        UpdateHeartsUI();
+        UIManager.Instance.UpdateHearts(lives);
 
         if (lives <= 0)
         {
@@ -132,19 +212,10 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    void UpdateHeartsUI()
-    {
-        for (int i = 0; i < heartImages.Length; i++)
-        {
-            heartImages[i].enabled = i < lives;
-        }
-    }
-
     void GameOver()
     {
         isGameOver = true;
-        gameOverPanel.SetActive(true);
-        Cursor.lockState = CursorLockMode.None;
+        UIManager.Instance.ShowGameOver();
     }
 
     public void RestartGame()
