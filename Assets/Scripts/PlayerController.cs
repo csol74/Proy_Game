@@ -97,6 +97,9 @@ public class PlayerController : MonoBehaviour
 
         velocity.y += gravity * Time.deltaTime;
         controller.Move(velocity * Time.deltaTime);
+
+        // ACTIVA O DESACTIVA LA ANIMACIÓN DE CAMINAR
+        animator.SetBool("Run", IsMoving);
     }
 
     void HandleRotation()
@@ -157,7 +160,6 @@ public class PlayerController : MonoBehaviour
             Destroy(other.gameObject);
             Debug.Log($"Llaves recolectadas: {keysCollected} / {totalKeysNeeded}");
 
-            // Actualiza la UI de llaves
             UIManager.Instance.UpdateKeys(keysCollected, totalKeysNeeded);
         }
         else if (other.CompareTag("FinalDoor"))
@@ -169,7 +171,6 @@ public class PlayerController : MonoBehaviour
             else
             {
                 Debug.Log("Necesitas más llaves para abrir la puerta.");
-                // (Opcional) Aquí podrías mostrar un mensaje en pantalla al jugador
             }
         }
     }
